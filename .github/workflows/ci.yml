@@ -1,0 +1,125 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+env:
+  NODE_VERSION: "24.21.0"
+  BUN_VERSION: "1.4.2"
+jobs:
+  # Builds and tests the addon natively on every supported platform.
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04 keeps the glibc requirement at 2.35.
+          - { os: ubuntu-22.04, target: linux-x64-gnu }
+          - { os: ubuntu-22.04-arm, target: linux-arm64-gnu }
+          - { os: windows-2025, target: win32-x64-msvc }
+          - { os: windows-11-arm, target: win32-arm64-msvc }
+          - { os: macos-15-intel, target: darwin-x64 }
+          - { os: macos-15, target: darwin-arm64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
+      - run: bun run pack
+      - run: bun run smoke
+      - run: bun run test:e2e
+      - uses: actions/upload-artifact@v7
+        with:
+          name: prebuild-${{ matrix.target }}
+          path: prebuilds/${{ matrix.target }}/now-playing-media.node
+          if-no-files-found: error
+
+  # Assembles the release tarball with all six binaries.
+  package:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: prebuild-*
+          path: prebuilds
+      - name: Arrange binaries
+        run: |
+          for dir in prebuilds/prebuild-*; do
+            mv "$dir" "prebuilds/${dir#prebuilds/prebuild-}"
+          done
+          ls -R prebuilds
+      - run: bun install --frozen-lockfile
+      - run: bun run build:js
+      - run: bun run pack --all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package
+          path: artifacts/*.tgz
+          if-no-files-found: error
+
+  # Installs that exact tarball on every platform.
+  verify:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          [
+            ubuntu-22.04,
+            ubuntu-22.04-arm,
+            windows-2025,
+            windows-11-arm,
+            macos-15-intel,
+            macos-15,
+          ]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: package
+          path: artifacts
+      - run: bun install --frozen-lockfile
+      - run: bun run smoke

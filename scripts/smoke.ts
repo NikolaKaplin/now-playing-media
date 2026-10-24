@@ -1,0 +1,109 @@
+// Installs the packed tarball into a clean consumer and loads the addon from
+// Node and Deno, as a user of the published package would.
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { nativeTarget } from "../src/native";
+import { denoCommand } from "./deno";
+import { npmCommand } from "./npm";
+
+const root = resolve(import.meta.dir, ".."),
+  dir = await mkdtemp(join(tmpdir(), "now-playing-media-consumer-"));
+async function run(cmd: string[]) {
+  const child = Bun.spawn(cmd, {
+    cwd: dir,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if ((await child.exited) !== 0)
+    throw new Error(`Consumer failed: ${cmd.join(" ")}`);
+}
+const consumer = `
+import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import * as media from "now-playing-media";
+assert.equal(media.nativeTarget(), ${JSON.stringify(nativeTarget())});
+assert.ok(existsSync(media.nativeBindingPath()));
+// The addon validates input itself, so this proves it loaded.
+await assert.rejects(() => media.nowPlaying.control("bad", ""), (error) =>
+  error instanceof media.NowPlayingError && error.code === "INVALID_ARGUMENT");
+await assert.rejects(() => media.seek(-1), { code: "INVALID_ARGUMENT" });
+try {
+  const sessions = await media.sessions();
+  assert.ok(Array.isArray(sessions));
+  console.log("sessions:", sessions.length);
+} catch (error) {
+  // CI machines may lack a session bus or media service; macOS always has one
+  // and must reach MediaRemote through the bundled adapter.
+  assert.ok(error instanceof media.NowPlayingError, String(error));
+  assert.notEqual(process.platform, "darwin", error.message);
+  console.log("media service unavailable:", error.code);
+}
+console.log("consumer OK");
+`;
+// dist/index.js is self-contained, so a copy of it stands in for a consumer's bundle.
+const bundled = `
+import assert from "node:assert/strict";
+import { join } from "node:path";
+import * as media from "./bundle/app.js";
+assert.equal(media.nativeBindingPath(), join(import.meta.dirname, "bundle", "prebuilds", media.nativeTarget(), "now-playing-media.node"));
+await assert.rejects(() => media.seek(-1), { code: "INVALID_ARGUMENT" });
+console.log("bundle OK");
+`;
+try {
+  const tarballs = (await readdir(join(root, "artifacts"))).filter((f) =>
+    f.endsWith(".tgz"),
+  );
+  if (tarballs.length !== 1)
+    throw new Error("Expected one tarball; run pack first.");
+  await copyFile(
+    join(root, "artifacts", tarballs[0]!),
+    join(dir, "package.tgz"),
+  );
+  await writeFile(
+    join(dir, "package.json"),
+    JSON.stringify({
+      private: true,
+      type: "module",
+      dependencies: { "now-playing-media": "file:./package.tgz" },
+    }),
+  );
+  await writeFile(join(dir, "consumer.mjs"), consumer);
+  await run(
+    npmCommand("install", "--ignore-scripts", "--no-audit", "--no-fund"),
+  );
+  await run(["node", "consumer.mjs"]);
+  const installed = join(dir, "node_modules/now-playing-media"),
+    binary = join("prebuilds", nativeTarget(), "now-playing-media.node");
+  await mkdir(join(dir, "bundle", "prebuilds", nativeTarget()), {
+    recursive: true,
+  });
+  await copyFile(join(installed, "dist/index.js"), join(dir, "bundle/app.js"));
+  await copyFile(join(installed, binary), join(dir, "bundle", binary));
+  await writeFile(join(dir, "bundled.mjs"), bundled);
+  await run(["node", "bundled.mjs"]);
+  const modules = join(dir, "node_modules");
+  await run(
+    denoCommand(
+      "run",
+      "--no-config",
+      "--no-lock",
+      "--node-modules-dir=manual",
+      `--allow-read=${modules}`,
+      `--allow-ffi=${modules}`,
+      "consumer.mjs",
+    ),
+  );
+  console.log(
+    `Verified ${tarballs[0]} with Node and Deno on ${nativeTarget()}.`,
+  );
+} finally {
+  await rm(dir, { recursive: true, force: true });
+}

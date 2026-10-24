@@ -1,0 +1,6 @@
+# One Rust for local builds and CI. A new stable release can bring new clippy
+# lints and resets the CI build cache, so the version only moves on purpose.
+[toolchain]
+channel = "1.99.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

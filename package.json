@@ -1,0 +1,77 @@
+{
+  "name": "now-playing-media",
+  "version": "0.1.0",
+  "description": "Read and control the system's now playing media sessions from Node.js and Deno on Windows, macOS and Linux.",
+  "keywords": [
+    "now-playing",
+    "media",
+    "mpris",
+    "gsmtc",
+    "smtc",
+    "mediaremote",
+    "napi"
+  ],
+  "license": "MIT",
+  "author": "NikolaKaplin",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "prebuilds",
+    "THIRD-PARTY-NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "linux",
+    "win32",
+    "darwin"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NikolaKaplin/now-playing-media.git"
+  },
+  "homepage": "https://github.com/NikolaKaplin/now-playing-media#readme",
+  "bugs": {
+    "url": "https://github.com/NikolaKaplin/now-playing-media/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build:native": "bun scripts/build-native.ts",
+    "build:js": "bun scripts/build-js.ts",
+    "build": "bun run build:native && bun run build:js",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test tests && cargo test --locked --workspace --manifest-path native/Cargo.toml",
+    "lint": "prettier --check . && cargo fmt --all --manifest-path native/Cargo.toml --check && cargo clippy --locked --workspace --all-targets --manifest-path native/Cargo.toml -- -D warnings",
+    "format": "prettier --write . && cargo fmt --all --manifest-path native/Cargo.toml",
+    "pack": "bun scripts/pack.ts",
+    "smoke": "bun scripts/smoke.ts",
+    "test:e2e": "bun scripts/e2e.ts",
+    "check": "bun run typecheck && bun run lint && bun run test && bun run build && bun run pack && bun run smoke && bun run test:e2e",
+    "check:release": "bun scripts/release.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "@types/node": "26.6.5",
+    "deno": "2.9.6",
+    "esbuild": "0.28.2",
+    "prettier": "3.9.0",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,52 @@
+name: Publish
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      dist_tag: ${{ steps.release.outputs.dist_tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - id: release
+        run: bun run check:release
+  ci:
+    needs: release
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: [release, ci]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.21.0"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: package
+          path: artifacts
+      # Trusted publishing (OIDC) may only stage; a maintainer approves the
+      # staged version with 2FA: npm stage approve <id>.
+      - name: Stage verified tarball
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          DIST_TAG: ${{ needs.release.outputs.dist_tag }}
+        run: npm stage publish "./artifacts/now-playing-media-${VERSION}.tgz" --access public --tag "$DIST_TAG"

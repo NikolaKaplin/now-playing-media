@@ -1,0 +1,5 @@
+node_modules/
+dist/
+artifacts/
+prebuilds/
+native/target/
