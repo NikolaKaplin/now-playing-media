@@ -5,6 +5,7 @@ import {
   mkdir,
   mkdtemp,
   readdir,
+  realpath,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -15,7 +16,10 @@ import { denoCommand } from "./deno";
 import { npmCommand } from "./npm";
 
 const root = resolve(import.meta.dir, ".."),
-  dir = await mkdtemp(join(tmpdir(), "now-playing-media-consumer-"));
+  // Deno matches permissions against long Windows paths, not 8.3 names like RUNNER~1.
+  dir = await realpath(
+    await mkdtemp(join(tmpdir(), "now-playing-media-consumer-")),
+  );
 async function run(cmd: string[]) {
   const child = Bun.spawn(cmd, {
     cwd: dir,

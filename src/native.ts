@@ -60,7 +60,16 @@ export function nativeBindingPath(): string {
   const candidates = [`../${file}`, `./${file}`].map((path) =>
     fileURLToPath(new URL(path, import.meta.url)),
   );
-  return candidates.find((path) => existsSync(path)) ?? candidates[0]!;
+  return candidates.find(exists) ?? candidates[0]!;
+}
+
+// Deno throws instead of returning false for paths it may not read.
+function exists(path: string): boolean {
+  try {
+    return existsSync(path);
+  } catch {
+    return false;
+  }
 }
 
 let binding: NativeBinding | undefined;
