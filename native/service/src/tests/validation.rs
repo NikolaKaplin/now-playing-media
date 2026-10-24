@@ -1,4 +1,4 @@
-use super::validation::validate_control;
+use crate::validation::validate_control;
 
 #[test]
 fn validates_controls_before_contacting_the_os() {

@@ -1,10 +1,12 @@
 # Working on now-playing-media
 
 An npm library for reading and controlling system media sessions from Node.js
-and Deno. Native code lives in `native/` (`native/media` is the forked
-nowplaying crate with its platform backends, `native/src` the Node-API addon),
-the JS API and types in `src/`. All six prebuilt binaries ship in the one npm
-package under `prebuilds/<target>/`; consumers never compile Rust.
+and Deno. Native code lives in `native/`: `media` is the forked nowplaying crate
+with its platform backends, `service` the operations shared by the Node-API
+addon (`native/src`) and the JSON-lines `sidecar`. The JS API and types are
+in `src/`; `src/client.ts` must stay free of Node imports. All six targets'
+addon and sidecar ship in the one npm package under `prebuilds/<target>/`;
+consumers never compile Rust.
 
 - Run `bun run check` before finishing; CI covers Linux, Windows and macOS on
   x64 and arm64.

@@ -11,6 +11,10 @@ const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
 };
 if (pkg.name !== "now-playing-media")
   throw new Error("Unexpected package name.");
+// The sidecar reports this version in its `hello` response.
+const sidecar = await readFile(join(root, "native/sidecar/Cargo.toml"), "utf8");
+if (!sidecar.includes(`\nversion = "${pkg.version}"\n`))
+  throw new Error("native/sidecar/Cargo.toml must have the package version.");
 const release = releaseInfo(
   process.env.GITHUB_REF_NAME ?? process.argv[2] ?? "",
   pkg.version,

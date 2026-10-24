@@ -398,10 +398,29 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "nowplaying",
+ "now-playing-service",
  "serde_json",
  "tokio",
  "zbus",
+]
+
+[[package]]
+name = "now-playing-media-sidecar"
+version = "0.2.0"
+dependencies = [
+ "now-playing-service",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "now-playing-service"
+version = "0.1.0"
+dependencies = [
+ "nowplaying",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

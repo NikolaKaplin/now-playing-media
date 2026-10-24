@@ -10,6 +10,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { build } from "esbuild";
 import { join, resolve } from "node:path";
 import { nativeTarget } from "../src/native";
 import { denoCommand } from "./deno";
@@ -52,7 +53,44 @@ try {
 }
 console.log("consumer OK");
 `;
-// dist/index.js is self-contained, so a copy of it stands in for a consumer's bundle.
+// The sidecar from the installed package, driven through the bundle-safe client.
+const sidecar = `
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
+import { sidecarPath } from "now-playing-media";
+import { createSidecarClient, NowPlayingError } from "now-playing-media/client";
+const child = spawn(sidecarPath(), [], { stdio: ["pipe", "pipe", "inherit"] });
+const lines = createInterface({ input: child.stdout });
+const pending = new Map();
+let nextId = 0;
+lines.on("line", (line) => {
+  const response = JSON.parse(line);
+  const settle = pending.get(response.id);
+  pending.delete(response.id);
+  if (response.ok) settle.resolve(response.value);
+  else settle.reject(Object.assign(new Error(response.error.message), { code: response.error.code }));
+});
+const call = (method, params) => new Promise((resolve, reject) => {
+  const id = ++nextId;
+  pending.set(id, { resolve, reject });
+  child.stdin.write(JSON.stringify({ id, method, params }) + "\\n");
+});
+const client = createSidecarClient(call);
+await assert.rejects(() => client.control("seek", "", -1), (error) =>
+  error instanceof NowPlayingError && error.code === "INVALID_ARGUMENT");
+try {
+  console.log("sidecar sessions:", (await client.sessions()).length);
+} catch (error) {
+  assert.ok(error instanceof NowPlayingError, String(error));
+  assert.notEqual(process.platform, "darwin", error.message);
+  console.log("sidecar: media service unavailable:", error.code);
+}
+child.stdin.end();
+assert.equal(await new Promise((resolve) => child.on("exit", resolve)), 0);
+console.log("sidecar OK");
+`;
+// A consumer that bundles this package and ships the binary next to the bundle.
 const bundled = `
 import assert from "node:assert/strict";
 import { join } from "node:path";
@@ -89,10 +127,19 @@ try {
   await mkdir(join(dir, "bundle", "prebuilds", nativeTarget()), {
     recursive: true,
   });
-  await copyFile(join(installed, "dist/index.js"), join(dir, "bundle/app.js"));
+  await build({
+    stdin: { contents: 'export * from "now-playing-media";', resolveDir: dir },
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    outfile: join(dir, "bundle/app.js"),
+    logLevel: "warning",
+  });
   await copyFile(join(installed, binary), join(dir, "bundle", binary));
   await writeFile(join(dir, "bundled.mjs"), bundled);
   await run(["node", "bundled.mjs"]);
+  await writeFile(join(dir, "sidecar.mjs"), sidecar);
+  await run(["node", "sidecar.mjs"]);
   const modules = join(dir, "node_modules");
   await run(
     denoCommand(

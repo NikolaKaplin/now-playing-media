@@ -3,7 +3,11 @@ export {
   nativeBindingPath,
   nativeTarget,
   nativeTargets,
+  sidecarFileName,
+  sidecarPath,
 } from "./native.js";
+export { createSidecarClient } from "./client.js";
+export type { SidecarCall } from "./client.js";
 export type { NativeTarget } from "./native.js";
 export { NowPlayingError } from "./errors.js";
 export type { NowPlayingErrorCode } from "./errors.js";

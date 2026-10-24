@@ -1,5 +1,5 @@
 [workspace]
-members = ["media"]
+members = ["media", "service", "sidecar"]
 
 [package]
 name = "now-playing-media"
@@ -15,9 +15,8 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = { version = "3", default-features = false, features = ["napi8", "tokio_rt"] }
 napi-derive = "3"
-nowplaying = { path = "media" }
+now-playing-service = { path = "service" }
 serde_json = "1"
-tokio = { version = "1", features = ["sync"] }
 
 [build-dependencies]
 napi-build = "2"

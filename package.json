@@ -1,6 +1,6 @@
 {
   "name": "now-playing-media",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Read and control the system's now playing media sessions from Node.js and Deno on Windows, macOS and Linux.",
   "keywords": [
     "now-playing",
@@ -20,6 +20,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
     },
     "./package.json": "./package.json"
   },

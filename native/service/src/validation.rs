@@ -1,4 +1,4 @@
-pub(crate) fn validate_control(
+pub fn validate_control(
     command: &str,
     session_id: &str,
     position: Option<f64>,

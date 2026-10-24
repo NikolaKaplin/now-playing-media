@@ -73,6 +73,33 @@ Failures reject with `NowPlayingError`, whose `code` is one of
 `BACKEND_UNAVAILABLE` (e.g. no D-Bus session), `PLATFORM_ERROR` or
 `INVALID_DATA`. Error messages never contain track metadata.
 
+## Sidecar
+
+Hosts that keep native code out of their own process can run the bundled
+sidecar instead of loading the addon. `sidecarPath()` returns the executable
+for the running platform (`sidecarFileName(target)` names it for others). It
+reads one JSON request per line on stdin and answers on stdout in order:
+
+```text
+{"id":1,"method":"sessions","params":{}}
+{"id":1,"ok":true,"value":[...]}
+{"id":2,"method":"control","params":{"command":"seek","sessionId":"","positionMs":45000}}
+{"id":2,"ok":false,"error":{"code":"NO_SESSION","message":"No media session is active."}}
+```
+
+Methods are `hello`, `current`, `sessions` and `control`; it exits when stdin
+closes and uses about 5 MB of memory. `now-playing-media/client` turns any
+transport into the usual API and has no Node imports, so it can be bundled
+into sandboxed code:
+
+```ts
+import { createSidecarClient } from "now-playing-media/client";
+
+// call(method, params) resolves with `value` or rejects with an error carrying `code`.
+const media = createSidecarClient(call);
+await media.current();
+```
+
 ## Deno
 
 Deno loads the addon through Node-API, which needs FFI permission and a local

@@ -63,6 +63,26 @@ export function nativeBindingPath(): string {
   return candidates.find(exists) ?? candidates[0]!;
 }
 
+/** The sidecar executable's file name for a target. */
+export function sidecarFileName(target: NativeTarget = nativeTarget()): string {
+  return target.startsWith("win32-")
+    ? "now-playing-media-sidecar.exe"
+    : "now-playing-media-sidecar";
+}
+
+/**
+ * Absolute path of the sidecar executable for a target, inside this package.
+ * Hosts that isolate native code run it as a separate process; see `./client`.
+ */
+export function sidecarPath(target: NativeTarget = nativeTarget()): string {
+  return fileURLToPath(
+    new URL(
+      `../prebuilds/${target}/${sidecarFileName(target)}`,
+      import.meta.url,
+    ),
+  );
+}
+
 // Deno throws instead of returning false for paths it may not read.
 function exists(path: string): boolean {
   try {

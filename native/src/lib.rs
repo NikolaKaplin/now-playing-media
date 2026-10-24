@@ -1,8 +1,3 @@
-mod validation;
-
+// napi functions are only reachable from JavaScript.
 #[cfg(not(test))]
 mod addon;
-
-#[cfg(test)]
-#[path = "tests/lib.rs"]
-mod tests;

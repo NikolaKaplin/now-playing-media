@@ -6,9 +6,12 @@ const root = resolve(import.meta.dir, ".."),
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 await build({
-  entryPoints: [join(root, "src/index.ts")],
-  outfile: join(out, "index.js"),
+  // A shared chunk keeps one NowPlayingError class for both entry points.
+  entryPoints: [join(root, "src/index.ts"), join(root, "src/client.ts")],
+  outdir: out,
   bundle: true,
+  splitting: true,
+  chunkNames: "[name]-[hash]",
   format: "esm",
   platform: "node",
   target: "es2022",

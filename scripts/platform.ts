@@ -1,4 +1,8 @@
-import { nativeTargets, type NativeTarget } from "../src/native";
+import {
+  nativeTargets,
+  sidecarFileName,
+  type NativeTarget,
+} from "../src/native";
 
 const rust: Record<NativeTarget, { triple: string; library: string }> = {
   "linux-x64-gnu": {
@@ -31,4 +35,8 @@ export const platforms = nativeTargets.map((key) => ({ key, ...rust[key] }));
 
 export function prebuildPath(key: NativeTarget) {
   return `prebuilds/${key}/now-playing-media.node`;
+}
+
+export function sidecarPrebuildPath(key: NativeTarget) {
+  return `prebuilds/${key}/${sidecarFileName(key)}`;
 }

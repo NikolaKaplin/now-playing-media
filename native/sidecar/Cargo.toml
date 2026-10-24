@@ -1,0 +1,14 @@
+[package]
+name = "now-playing-media-sidecar"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+publish = false
+description = "Standalone process serving now-playing-media over JSON lines."
+
+[dependencies]
+now-playing-service = { path = "../service" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["io-std", "io-util", "macros", "rt"] }
